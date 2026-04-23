@@ -1,0 +1,11 @@
+venv/
+.venv/
+__pycache__/
+*.pyc
+.env
+knowledge_base/
+vector_store/
+output/
+*.pptx
+output/chroma_db/
+.chromadb/

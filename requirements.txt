@@ -1,0 +1,14 @@
+langgraph
+langchain
+langchain-google-genai
+langchain-tavily
+langchain-community
+langchain-huggingface
+langchain-text-splitters
+sentence-transformers
+python-pptx
+streamlit
+beautifulsoup4
+python-dotenv
+chromadb
+pypdf
