@@ -56,22 +56,17 @@ def researcher_node(state):
 # ─── Architect Node ──────────────────────────────────────────────────────────
 
 def architect_node(state):
-    """
-    Uses Gemini to convert research notes into a clean 5-slide JSON outline.
-    """
-    llm = ChatGoogleGenerativeAI(model="gemini-2.5-flash", temperature=0.2)
+    llm = ChatGoogleGenerativeAI(model="gemini-3-flash-preview", temperature=0.2)
 
-    notes = state.get("research_notes", "No research notes available.")
+    notes = state.get("research_notes", "No research notes found.")
     topic = state.get("topic", "General Topic")
 
     system_instructions = (
         "You are a professional presentation architect. "
-        "Create a 5-slide presentation based on the provided research notes. "
-        "Output ONLY raw JSON — a list of exactly 5 dicts. "
-        "Each dict must have: "
-        "'title' (a short string) and "
-        "'content' (a list of 3-4 concise bullet point strings). "
-        "Do NOT include markdown, code fences, or any explanation. Just the JSON."
+        "Create a 5-slide presentation based on the research notes. "
+        "Output ONLY raw JSON — a list of 5 dicts, each with keys 'title' (string) "
+        "and 'content' (list of 3-4 bullet point strings). "
+        "Do NOT include any markdown, code fences, or explanation text."
     )
 
     prompt = f"Topic: {topic}\n\nResearch Notes:\n{notes}"
@@ -82,22 +77,19 @@ def architect_node(state):
     ])
 
     try:
-        clean_json = response.content.replace("```json", "").replace("```", "").strip()
+        # Handle both string and list response formats
+        raw = response.content
+        if isinstance(raw, list):
+            # Extract text from the first text block
+            raw = next((block["text"] for block in raw if isinstance(block, dict) and block.get("type") == "text"), "")
+        
+        clean_json = raw.replace("```json", "").replace("```", "").strip()
         slides = json.loads(clean_json)
     except Exception as e:
-        print(f"⚠️ JSON parse error: {e}\nRaw response:\n{response.content}")
-        slides = [
-            {
-                "title": "Research Summary",
-                "content": [
-                    "Could not parse structured output.",
-                    "Please try again with a more specific topic.",
-                    f"Raw error: {str(e)}"
-                ]
-            }
-        ]
+        print(f"JSON parse error: {e}\nRaw response: {response.content}")
+        slides = [{"title": "Error", "content": ["Could not parse output.", "Please try again."]}]
 
     return {
         "slides_json": slides,
-        "messages": [LCHumanMessage(content=f"Architect built {len(slides)} slides for: {topic}")]
+        "messages": [LCHumanMessage(content=f"Architect built slides for: {topic}")]
     }

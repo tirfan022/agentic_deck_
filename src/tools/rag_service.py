@@ -54,7 +54,7 @@ def get_retriever():
     """
     docs = process_local_documents()
     if not docs:
-        print("⚠️ No local documents found. RAG will be skipped.")
+        print("No local documents found. RAG will be skipped.")
         return None
 
     splitter = RecursiveCharacterTextSplitter(chunk_size=500, chunk_overlap=50)
@@ -65,7 +65,7 @@ def get_retriever():
         embeddings,
         persist_directory=VECTOR_STORE_PATH
     )
-    print(f"✅ Vector store built with {len(chunks)} chunks.")
+    print(f"Vector store built with {len(chunks)} chunks.")
     return db.as_retriever(search_kwargs={"k": 3})
 
 
