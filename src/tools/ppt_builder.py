@@ -60,7 +60,7 @@ def normalize_bullets(raw_content):
     return clean_bullets
 
 
-def build_presentation(slides_data, topic=""):
+def build_presentation(slides_data, topic="",):
     """Build a text-only PowerPoint presentation."""
     if not isinstance(slides_data, list):
         raise ValueError("slides_data must be a list.")
