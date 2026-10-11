@@ -12,8 +12,21 @@ load_dotenv()
 sys.path.append(os.path.dirname(os.path.abspath(__file__)))
 
 # Check for API Keys
+for key in ("GOOGLE_API_KEY", "TAVILY_API_KEY"):
+    if not os.getenv(key):
+        try:
+            value = st.secrets[key]
+        except (KeyError, FileNotFoundError):
+            value = None
+
+        if value:
+            os.environ[key] = value
+
 if not os.getenv("GOOGLE_API_KEY") or not os.getenv("TAVILY_API_KEY"):
-    st.error("⚠️ API Keys missing! Please check your .env file.")
+    st.error(
+        "API keys are missing. Configure GOOGLE_API_KEY "
+        "and TAVILY_API_KEY in your .env file or Streamlit Secrets."
+    )
     st.stop()
 
 # 2. IMPORT AGENT LOGIC
