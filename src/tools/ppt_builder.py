@@ -60,8 +60,48 @@ def normalize_bullets(raw_content):
     return clean_bullets
 
 
-def build_presentation(slides_data, topic="",):
-    """Build a text-only PowerPoint presentation."""
+def _add_logo(slide, logo_path):
+    """Insert a logo if supplied; log a clear warning if it cannot be added."""
+    if not logo_path:
+        logger.info("No logo_path supplied; building without a logo.")
+        return False
+
+    from pathlib import Path
+    logo_file = Path(logo_path)
+    if not logo_file.is_file():
+        logger.warning("Logo path does not exist: %s", logo_file.resolve())
+        return False
+
+    try:
+        # Use the original file directly. python-pptx supports PNG and JPEG.
+        # Place it within the slide canvas and preserve its aspect ratio.
+        from PIL import Image
+        with Image.open(logo_file) as image:
+            image.load()
+            width_px, height_px = image.size
+            if width_px <= 0 or height_px <= 0:
+                raise ValueError("Logo image has invalid dimensions.")
+
+        max_width, max_height = 1.25, 0.60
+        scale = min(max_width / width_px, max_height / height_px)
+        width = width_px * scale
+        height = height_px * scale
+        x = 13.333 - 0.45 - width
+        y = 7.5 - 0.30 - height
+
+        slide.shapes.add_picture(
+            str(logo_file), Inches(x), Inches(y),
+            width=Inches(width), height=Inches(height),
+        )
+        logger.info("Logo inserted from %s", logo_file.resolve())
+        return True
+    except Exception as exc:
+        logger.exception("Could not insert logo from %s: %s", logo_file, exc)
+        return False
+
+
+def build_presentation(slides_data, logo_path=None, topic=""):
+    """Build a text-only PowerPoint presentation with an optional company logo."""
     if not isinstance(slides_data, list):
         raise ValueError("slides_data must be a list.")
     if len(slides_data) > 30:
@@ -94,6 +134,7 @@ def build_presentation(slides_data, topic="",):
         0.85, 3.65, 10.8, 0.8,
         19, False, RGBColor(85, 95, 110),
     )
+    _add_logo(cover, logo_path)
 
     for index, item in enumerate(slides_data, start=1):
         if not isinstance(item, dict):
@@ -154,6 +195,7 @@ def build_presentation(slides_data, topic="",):
             0.72, 7.05, 5.0, 0.22,
             8, False, RGBColor(120, 128, 140),
         )
+        _add_logo(slide, logo_path)
 
     output = BytesIO()
     prs.save(output)

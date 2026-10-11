@@ -8,6 +8,7 @@ from pathlib import Path
 import streamlit as st
 from dotenv import load_dotenv
 from langgraph.types import Command
+from src.tools.ppt_builder import build_presentation
 
 # --------------------------------------------------
 # 1. PAGE CONFIG, PATHS, ENVIRONMENT

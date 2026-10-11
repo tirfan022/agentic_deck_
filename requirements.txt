@@ -1,6 +1,7 @@
 langgraph
 langchain
 langchain-google-genai
+langchain-groq
 langchain-tavily
 langchain-community
 langchain-huggingface

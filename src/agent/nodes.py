@@ -2,9 +2,44 @@ import os
 import json
 from langchain_community.tools.tavily_search import TavilySearchResults
 from langchain_google_genai import ChatGoogleGenerativeAI
+from langchain_groq import ChatGroq
 from langchain_core.messages import SystemMessage, HumanMessage
 from langchain_core.messages import HumanMessage as LCHumanMessage
 from src.tools.rag_service import get_retriever, query_local_docs
+
+
+def invoke_llm_with_fallback(messages, temperature=0.2):
+    """Try Gemini first; use Groq if Gemini fails (for example, quota exhaustion)."""
+    primary = ChatGoogleGenerativeAI(
+        model=os.getenv("GEMINI_MODEL", "gemini-3-flash-preview"),
+        temperature=temperature,
+    )
+
+    try:
+        return primary.invoke(messages)
+    except Exception as primary_error:
+        groq_api_key = os.getenv("GROQ_API_KEY")
+        if not groq_api_key:
+            raise RuntimeError(
+                "Gemini failed and no backup is configured. Add GROQ_API_KEY "
+                "to your .env file or Streamlit Cloud Secrets. "
+                f"Original Gemini error: {primary_error}"
+            ) from primary_error
+
+        print(f"Gemini request failed; switching to Groq backup. Reason: {primary_error}")
+        backup = ChatGroq(
+            model=os.getenv("GROQ_MODEL", "llama-3.3-70b-versatile"),
+            temperature=temperature,
+            api_key=groq_api_key,
+        )
+        try:
+            return backup.invoke(messages)
+        except Exception as backup_error:
+            raise RuntimeError(
+                "Both Gemini and the Groq backup failed. Check both providers' "
+                "API keys, model availability, and rate limits. "
+                f"Gemini error: {primary_error}; Groq error: {backup_error}"
+            ) from backup_error
 
 # ─── Web Search Tool ────────────────────────────────
 
@@ -69,7 +104,6 @@ def researcher_node(state):
 # ─── Architect Node ──────────────────────────────────────────────────────────
 
 def architect_node(state):
-    llm = ChatGoogleGenerativeAI(model="gemini-3-flash-preview", temperature=0.2)
 
     notes = state.get("research_notes", "No research notes found.")
     topic = state.get("topic", "General Topic")
@@ -84,10 +118,10 @@ def architect_node(state):
 
     prompt = f"Topic: {topic}\n\nResearch Notes:\n{notes}"
 
-    response = llm.invoke([
+    response = invoke_llm_with_fallback([
         SystemMessage(content=system_instructions),
         HumanMessage(content=prompt)
-    ])
+    ], temperature=0.2)
 
     try:
         # Handle both string and list response formats
@@ -116,12 +150,7 @@ def revise_outline(topic, research_notes, current_slides, feedback):
     if not feedback.strip():
         raise ValueError("Please describe the changes you want.")
 
-    llm = ChatGoogleGenerativeAI(
-        model="gemini-3-flash-preview",
-        temperature=0.3,
-    )
-
-    response = llm.invoke([
+    response = invoke_llm_with_fallback([
         SystemMessage(content=(
             "Revise a presentation outline using the user's feedback. "
             "Use the supplied research, preserve factual accuracy, and "
@@ -136,7 +165,7 @@ def revise_outline(topic, research_notes, current_slides, feedback):
             f"{json.dumps(current_slides, ensure_ascii=False)}\n\n"
             f"Requested changes:\n{feedback[:2000]}"
         )),
-    ])
+    ], temperature=0.3)
 
     raw = response.content
     if isinstance(raw, list):
