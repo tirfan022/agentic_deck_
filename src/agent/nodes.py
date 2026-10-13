@@ -59,19 +59,30 @@ def get_web_search_tool():
     )
 
 def perform_web_search(topic: str) -> str:
-    """
-    Searches the web using Tavily and returns a formatted string of results.
-    """
+    """Search Tavily and format the returned results."""
     try:
+        web_search_tool = get_web_search_tool()
         results = web_search_tool.invoke(topic)
-        context = ""
-        for i, r in enumerate(results):
-            context += f"\n--- Source {i+1}: {r.get('url', 'N/A')} ---\n"
-            context += f"Title: {r.get('title', 'N/A')}\n"
-            context += f"Content: {r.get('content', '')}\n"
-        return context if context else "No relevant web results found."
+
+        if not isinstance(results, list) or not results:
+            return "No relevant web results found."
+
+        sections = []
+
+        for i, result in enumerate(results, start=1):
+            if not isinstance(result, dict):
+                continue
+
+            sections.append(
+                f"--- Source {i}: {result.get('url', 'N/A')} ---\n"
+                f"Title: {result.get('title', 'N/A')}\n"
+                f"Content: {result.get('content', '')}"
+            )
+
+        return "\n\n".join(sections) or "No relevant web results found."
+
     except Exception as e:
-        return f"Web search failed: {str(e)}"
+        raise RuntimeError(f"Web search failed: {e}") from e
 
 
 # ─── Researcher Node ─────────────────────────────────────────────────────────
